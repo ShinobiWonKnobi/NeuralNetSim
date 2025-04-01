@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Neural Net Digit Recognition Simulation</title>
+    <style>
+        :root {
+            --positive-weight-color: rgba(0, 0, 255, 0.6);
+            --negative-weight-color: rgba(255, 0, 0, 0.6);
+            --positive-gradient-highlight: rgba(0, 255, 0, 0.8); /* Green for updates */
+            --negative-gradient-highlight: rgba(255, 165, 0, 0.8); /* Orange for updates */
+            --border-color: #ddd;
+            --background-light: #f9f9f9;
+            --background-main: #fff;
+            --text-color: #333;
+            --text-muted: #555;
+            --shadow-color: rgba(0,0,0,0.1);
+            --primary-color: #007bff;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --info-color: #17a2b8;
+            --warning-color: #ffc107;
+        }
+
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+            padding: 15px;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        h1, h2, h3, h4 {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            color: var(--text-color);
+            text-align: center;
+        }
+        p {
+            max-width: 800px;
+            text-align: center;
+            margin-bottom: 15px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 1300px; /* Wider max width */
+        }
+
+        /* Explanation Section */
+        .explanation-section {
+            background-color: var(--background-main);
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            width: 100%;
+            max-width: 900px;
+            border: 1px solid var(--border-color);
+        }
+        .explanation-section h2 { cursor: pointer; }
+        .explanation-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            text-align: left;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+        .explanation-content.show {
+             max-height: 1500px; /* Adjust as needed */
+             margin-top: 10px;
+             padding-top: 10px;
+             border-top: 1px solid var(--border-color);
+        }
+        .explanation-content h4 { text-align: left; margin-top: 15px; color: var(--primary-color); }
+        .explanation-content ul { margin-left: 20px; }
+        .explanation-content li { margin-bottom: 8px; }
+        .explanation-content code { background-color: #eee; padding: 2px 4px; border-radius: 3px; font-family: monospace;}
+
+        .simulation-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 25px;
+            background-color: var(--background-main);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px var(--shadow-color);
+            width: 100%;
+            align-items: flex-start; /* Align items top */
+        }
+
+        /* Input Area & Hidden Weight Viz */
+        .input-viz-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            flex-basis: 180px; /* Slightly wider */
+            flex-grow: 0;
+        }
+        .input-area { text-align: center; }
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 24px); /* Larger cells */
+            gap: 2px;
+            border: 1px solid #ccc;
+            padding: 5px;
+            background-color: #eee;
+            margin: 10px auto;
+            cursor: default;
+        }
+        .input-grid.drawable { cursor: pointer; }
+        .grid-cell {
+            width: 24px;
+            height: 24px;
+            background-color: white;
+            border: 1px solid #eee;
+            box-sizing: border-box;
+        }
+        .grid-cell.active { background-color: black; }
+        .input-grid.drawable .grid-cell:hover { background-color: #ddd; }
+        .input-grid.drawable .grid-cell.active:hover { background-color: #333; }
+
+        /* Hidden Neuron Weight Visualization */
+        .hidden-weight-viz {
+             text-align: center;
+             margin-top: 10px;
+             padding: 10px;
+             border: 1px dashed var(--info-color);
+             border-radius: 5px;
+             background-color: #eef7f9;
+             min-height: 180px; /* Reserve space */
+             opacity: 0; /* Hidden by default */
+             transition: opacity 0.3s ease-in-out;
+         }
+        .hidden-weight-viz.visible {
+             opacity: 1;
+         }
+         .hidden-weight-viz h4 { font-size: 0.9em; margin-bottom: 5px; }
+         .weight-grid {
+             display: grid;
+             grid-template-columns: repeat(5, 18px); /* Smaller grid */
+             gap: 1px;
+             border: 1px solid #ccc;
+             padding: 3px;
+             background-color: #f0f0f0;
+             margin: 5px auto;
+         }
+         .weight-cell {
+             width: 18px;
+             height: 18px;
+             background-color: grey; /* Default */
+             border: none;
+         }
+
+
+        /* Network Visualization */
+        .network-visualization {
+            display: flex;
+            align-items: center;
+            gap: 60px; /* Even wider gap */
+            position: relative;
+            min-height: 480px; /* Taller */
+            flex-grow: 1;
+            min-width: 400px;
+        }
+        .network-layer { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+        .neuron {
+            width: 16px;
+            height: 16px;
+            border: 1px solid #aaa;
+            border-radius: 50%;
+            background-color: white;
+            position: relative;
+            z-index: 1;
+            transition: background-color 0.1s ease-in-out, transform 0.1s ease;
+            cursor: default;
+        }
+        .neuron.hidden-neuron:hover {
+             transform: scale(1.2); /* Indicate hover */
+             cursor: pointer;
+        }
+        .output-neuron-label { position: absolute; right: -22px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-muted); z-index: 2; }
+        .network-connections { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; }
+        .network-connections svg { width: 100%; height: 100%; }
+        .connection {
+            stroke: #ccc;
+            stroke-width: 0.5;
+            transition: stroke 0.1s ease-in-out, stroke-width 0.1s ease-in-out;
+        }
+        .connection.gradient-highlight-pos { stroke: var(--positive-gradient-highlight) !important; }
+        .connection.gradient-highlight-neg { stroke: var(--negative-gradient-highlight) !important; }
+
+
+        /* Controls and Output */
+        .controls-output-area {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex-basis: 240px; /* Wider */
+            flex-grow: 0;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 5px; padding: 12px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--background-light); }
+        .control-group label { font-size: 0.9em; color: var(--text-color); margin-bottom: 3px; }
+        .control-group select,
+        .control-group input[type="range"],
+        .control-group input[type="number"] { width: 100%; padding: 3px; }
+        .control-group input[type="checkbox"] { align-self: flex-start; margin-right: 5px;}
+        .inline-controls label { display: inline-block; margin-right: 5px;}
+        .inline-controls input, .inline-controls select { width: auto; display: inline-block; vertical-align: middle;}
+        .noise-controls input[type="number"] { width: 60px; }
+
+        button { padding: 8px 12px; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; font-size: 0.9em; margin-top: 5px; }
+        button:hover { filter: brightness(110%); }
+        button:disabled { background-color: #ccc !important; cursor: not-allowed; filter: none; }
+        .btn-primary { background-color: var(--primary-color); }
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-success { background-color: var(--success-color); }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-info { background-color: var(--info-color); }
+        .btn-warning { background-color: var(--warning-color); color: #333;}
+
+
+        .status-display, .accuracy-display, .output-display { font-size: 0.9em; color: var(--text-color); padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--background-light); }
+        .output-display p { margin: 5px 0; text-align: left; }
+        .prediction-correct { color: var(--success-color); font-weight: bold; }
+        .prediction-incorrect { color: var(--danger-color); font-weight: bold; }
+        #prediction-status { font-weight: normal; }
+
+        /* Test Mode Area */
+        #test-area { text-align: center; margin-top: 15px; padding: 15px; border: 1px dashed var(--success-color); border-radius: 5px; background-color: #f0fff0; }
+        #test-area h3 { margin-bottom: 5px;}
+        #test-area p { margin-bottom: 10px; font-size: 0.9em; }
+        #test-area .output-display { margin-top: 10px; background-color: #e6ffe6; }
+
+
+        /* Graph Area */
+        .graph-container { width: 100%; max-width: 800px; margin-top: 20px; background-color: var(--background-main); padding: 15px; border-radius: 8px; box-shadow: 0 4px 8px var(--shadow-color); text-align: center; border: 1px solid var(--border-color);}
+        #error-graph-svg { width: 95%; height: 150px; border: 1px solid #ccc; background-color: #fdfdfd; margin-top: 10px; }
+        #error-graph-svg polyline { stroke: var(--primary-color); stroke-width: 2; fill: none; }
+        #error-graph-svg .axis { stroke: #aaa; stroke-width: 1; }
+        #error-graph-svg .gridline { stroke: #eee; stroke-width: 1; }
+        #error-graph-svg text { font-size: 10px; fill: var(--text-muted); }
+
+
+        /* Tooltip for hidden neuron viz */
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            white-space: nowrap;
+            z-index: 10;
+            pointer-events: none; /* Don't interfere with mouse */
+            display: none; /* Hidden initially */
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Advanced Neural Network Simulation</h1>
+
+    <!-- Explanation Section -->
+    <div class="explanation-section">
+        <h2 id="explanation-toggle">What is this? (Click to Expand/Collapse) &#9662;</h2>
+        <div id="explanation-content" class="explanation-content">
+            <p>This simulation provides a hands-on, visual way to build intuition about how simple Artificial Neural Networks (ANNs) learn.</p>
+            <h4>Goal:</h4>
+            <p>The network's goal is to learn to recognize simple, idealized patterns of digits (0-9) drawn on a 5x7 grid.</p>
+            <h4>What You See:</h4>
+            <ul>
+                <li><strong>Input / Drawing Grid (Left):</strong> Shows the 5x7 pixel pattern currently being fed to the network (during training) or allows you to draw (in Test Mode). Black cells are input '1', white are '0'.</li>
+                <li><strong>Hidden Neuron Weights (Below Input):</strong> When you hover over a neuron in the middle (hidden) layer, this area shows the weights connecting *from* the 35 input pixels *to that specific hidden neuron*. Blue means a positive connection (input pixel activation excites the hidden neuron), Red means negative (input pixel inhibits). Brighter color = stronger weight. This helps visualize what "feature" (like a line, curve, or corner) that hidden neuron might be learning to detect.</li>
+                <li><strong>Network Diagram (Center):</strong>
+                    <ul>
+                        <li><strong>Layers:</strong> Columns of circles (neurons). Input (left, signals go in), Hidden (middle, processes features), Output (right, final decision).</li>
+                        <li><strong>Neurons:</strong> Circles whose brightness indicates their *activation* level (output value). Black is high activation (close to 1), White is low (close to 0). For ReLU, black means >= 1, white is 0.</li>
+                        <li><strong>Connections:</strong> Lines between neurons representing *weights*. Blue = positive weight, Red = negative. Thickness/Opacity = strength (absolute value) of the weight. Stronger weights have more influence.</li>
+                        <li><strong>Output Labels:</strong> The 10 output neurons are labeled 0-9. The network's prediction is the neuron with the highest activation.</li>
+                    </ul>
+                </li>
+                 <li><strong>Controls & Status (Right):</strong> Adjust parameters, control training, and see statistics.
+                    <ul>
+                        <li><strong>Learning Rate:</strong> How big are the adjustments to weights after each example? Higher = faster learning, but risk of instability.</li>
+                        <li><strong>Activation Function:</strong> Changes the math inside neurons (Sigmoid squashes output between 0-1, ReLU outputs 0 or the input value if positive). Requires Reset.</li>
+                        <li><strong>Hidden Neurons:</strong> More neurons = potentially more learning capacity, but also more computation. Requires Reset.</li>
+                        <li><strong>Noise:</strong> Randomly flips input pixels during training to make the task harder and test robustness.</li>
+                        <li><strong>Gradient Viz:</strong> Briefly highlights connections during backpropagation (Green/Orange) based on the calculated *change* (gradient), showing where learning is focused.</li>
+                         <li><strong>Save/Load:</strong> Store/retrieve the learned weights (requires matching network structure).</li>
+                        <li><strong>Status/Accuracy:</strong> Tracks training progress (Epochs, Error, Accuracy).</li>
+                        <li><strong>Test Mode:</strong> Lets you draw on the grid and see the trained network's prediction.</li>
+                    </ul>
+                 </li>
+                 <li><strong>Error Graph (Bottom):</strong> Plots the average network error after each full training cycle (epoch). Ideally, this line should go down over time as the network learns.</li>
+            </ul>
+            <h4>How it Learns (Simplified):</h4>
+            <ol>
+                <li><strong>Forward Pass:</strong> Input pattern data flows left-to-right. Each neuron calculates a weighted sum of its inputs (+ bias), then applies its activation function (e.g., Sigmoid) to produce an output activation.</li>
+                <li><strong>Calculate Error:</strong> Compare the network's output activations to the *desired* output (e.g., for input '3', we want the '3' output neuron near 1, others near 0). Calculate the difference (error).</li>
+                <li><strong>Backpropagation:</strong> Calculate how much each weight and bias contributed to the final error. This involves working backward from the output layer, using calculus (the chain rule) to find *gradients* (the direction and magnitude of change needed for each weight/bias to reduce the error).</li>
+                <li><strong>Weight Update:</strong> Adjust each weight and bias slightly in the direction that reduces the error, scaled by the *Learning Rate*. <code>New Weight = Old Weight - LearningRate * Gradient</code>.</li>
+                <li><strong>Repeat:</strong> Show the network many examples (one full pass through all digits is an *epoch*), repeating steps 1-4. Over time, the weights adjust so the network gets better at activating the correct output neuron for each input pattern.</li>
+            </ol>
+             <h4>Things to Try:</h4>
+             <ul>
+                 <li>Train the network and watch the Error Graph decrease and Accuracy increase.</li>
+                 <li>Hover over hidden neurons during/after training. Do they seem to respond to specific shapes?</li>
+                 <li>Experiment with different Learning Rates, Hidden Neuron counts, and Activation Functions (remember to Reset).</li>
+                 <li>Add Noise during training. Does it take longer? Is the final network more robust in Test Mode?</li>
+                 <li>Enable Gradient Visualization to see the learning updates in action (can be slow).</li>
+                 <li>Use Test Mode to see how well the trained network generalizes to your drawings.</li>
+                 <li>Save a well-trained network and Load it back later.</li>
+             </ul>
+        </div>
+    </div>
+
+    <div class="simulation-row">
+        <!-- Input Area & Hidden Weight Viz -->
+        <div class="input-viz-area">
+            <div class="input-area">
+                <h3>Input / Drawing</h3>
+                <div id="input-grid" class="input-grid"></div>
+                <p>Target: <strong id="target-digit">N/A</strong></p>
+                 <div id="test-area" style="display: none;">
+                     <h3>Test Mode Active</h3>
+                     <p>Draw on grid. Click Predict.</p>
+                     <button id="predict-drawn" class="btn-success">Predict Drawn Digit</button>
+                     <div class="output-display">
+                        <h4>Prediction Result</h4>
+                        <p>Output: <strong id="prediction-test">N/A</strong> | Conf: <strong id="confidence-test">N/A</strong></p>
+                     </div>
+                      <button id="exit-test-mode" class="btn-secondary">Exit Test Mode</button>
+                 </div>
+            </div>
+             <div id="hidden-weight-viz" class="hidden-weight-viz">
+                 <h4>Hidden Neuron Weights<span id="viz-neuron-index"></span></h4>
+                 <div id="weight-grid" class="weight-grid"></div>
+                 <p style="font-size:0.8em; margin-top: 5px;">(Hover over hidden neuron)</p>
+             </div>
+        </div>
+
+
+        <!-- Network Visualization -->
+        <div class="network-visualization">
+            <div id="network-connections" class="network-connections">
+                <svg id="connections-svg" width="100%" height="100%"></svg>
+            </div>
+            <div id="input-layer" class="network-layer"></div>
+            <div id="hidden-layer" class="network-layer"></div>
+            <div id="output-layer" class="network-layer"></div>
+        </div>
+
+        <!-- Controls and Output -->
+        <div class="controls-output-area">
+            <h3>Controls & Settings</h3>
+            <div class="control-group">
+                <label for="activation-function">Activation Function:</label>
+                <select id="activation-function">
+                    <option value="sigmoid" selected>Sigmoid</option>
+                    <option value="relu">ReLU</option>
+                </select>
+                <label for="hidden-neurons">Hidden Neurons (<span id="hn-value">15</span>):</label>
+                <input type="range" id="hidden-neurons" min="5" max="40" step="1" value="15">
+                <button id="reset-network" class="btn-danger">Reset Network (Required)</button>
+            </div>
+            <div class="control-group">
+                <label for="learning-rate">Learning Rate (<span id="lr-value">0.1</span>):</label>
+                <input type="range" id="learning-rate" min="0.005" max="1" step="0.005" value="0.1">
+                 <div class="inline-controls noise-controls">
+                     <input type="checkbox" id="add-noise">
+                     <label for="add-noise">Input Noise:</label>
+                     <input type="range" id="noise-level" min="1" max="50" step="1" value="5" style="width: 80px;">
+                     (<span id="nl-value">5</span>%)
+                 </div>
+                  <div class="inline-controls">
+                     <input type="checkbox" id="show-gradients">
+                     <label for="show-gradients" title="Briefly highlight connections during weight update step (can slow simulation)">Visualize Gradients</label>
+                  </div>
+            </div>
+             <div class="control-group">
+                 <label for="delay">Step Delay (ms):</label>
+                 <input type="number" id="delay" min="0" max="1000" step="10" value="50">
+            </div>
+            <div class="control-group">
+                <button id="start-training" class="btn-primary">Start Training</button>
+                <button id="stop-training" class="btn-warning" disabled>Stop Training</button>
+                <button id="step-training" class="btn-info">Step Once</button>
+                <button id="enter-test-mode" class="btn-success" disabled>Enter Test Mode</button>
+            </div>
+             <div class="control-group inline-controls">
+                 <button id="save-weights" class="btn-secondary" title="Save weights/biases to browser storage">Save</button>
+                 <button id="load-weights" class="btn-secondary" title="Load weights/biases from browser storage">Load</button>
+                 <span id="save-load-status" style="font-size:0.85em; margin-left: 5px;"></span>
+             </div>
+
+            <h3>Status & Output</h3>
+            <div class="status-display control-group">
+                <p>Epoch: <span id="epoch-count">0</span> | Trained: <span id="example-count">0</span></p>
+                <p>Avg Epoch Error: <span id="error-rate">N/A</span></p>
+            </div>
+             <div class="accuracy-display control-group">
+                 <p>Epoch Accuracy: <span id="accuracy-rate">N/A</span></p>
+             </div>
+             <div class="output-display" id="training-output">
+                <h4>Training Prediction</h4>
+                <p>Output: <strong id="prediction-train">N/A</strong> | Conf: <strong id="confidence-train">N/A</strong></p>
+                <p>Status: <span id="prediction-status">-</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Graph Area -->
+    <div class="graph-container">
+         <h2>Average Error per Epoch</h2>
+         <svg id="error-graph-svg">
+            <g id="graph-gridlines"></g>
+            <g id="graph-axes"></g>
+            <g id="graph-labels"></g>
+            <polyline id="error-graph-line"></polyline>
+         </svg>
+    </div>
+
+    <!-- Tooltip element -->
+    <div id="tooltip" class="tooltip"></div>
+
+
+    <script>
+        // --- Configuration ---
+        const GRID_WIDTH = 5;
+        const GRID_HEIGHT = 7;
+        const INPUT_SIZE = GRID_WIDTH * GRID_HEIGHT; // 35
+        const OUTPUT_SIZE = 10; // Digits 0-9
+        const MAX_GRAPH_EPOCHS = 100;
+        const GRADIENT_HIGHLIGHT_DURATION = 150; // ms
+
+        // --- Idealized Digit Patterns (5x7) ---
+        const digitPatterns = [ /* ... (Keep the same patterns as before) ... */
+            [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0], // 0
+            [0,0,1,0,0, 0,1,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,1,1,1,0], // 1
+            [0,1,1,1,0, 1,0,0,0,1, 0,0,0,1,0, 0,0,1,0,0, 0,1,0,0,0, 1,0,0,0,0, 1,1,1,1,1], // 2
+            [0,1,1,1,0, 0,0,0,0,1, 0,0,0,1,0, 0,0,1,1,0, 0,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0], // 3
+            [0,0,0,1,0, 0,0,1,1,0, 0,1,0,1,0, 1,0,0,1,0, 1,1,1,1,1, 0,0,0,1,0, 0,0,0,1,0], // 4
+            [1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 0,0,0,0,1, 0,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0], // 5
+            [0,0,1,1,0, 0,1,0,0,0, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0], // 6
+            [1,1,1,1,1, 0,0,0,0,1, 0,0,0,1,0, 0,0,1,0,0, 0,1,0,0,0, 0,1,0,0,0, 0,1,0,0,0], // 7
+            [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0], // 8
+            [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,1, 0,0,0,0,1, 0,0,0,1,0, 0,1,1,0,0]  // 9
+        ];
+
+        // --- Activation Functions ---
+        const activationFunctions = {
+            sigmoid: {
+                func: x => 1 / (1 + Math.exp(-x)),
+                derivative: sigX => sigX * (1 - sigX) // Takes sigmoid(x) as input
+            },
+            relu: {
+                func: x => Math.max(0, x),
+                derivative: reluX => reluX > 0 ? 1 : 0 // Takes relu(x) as input
+            }
+        };
+
+        // --- Neural Network Implementation ---
+        class NeuralNetwork {
+            constructor(layerSizes, activationType = 'sigmoid') {
+                this.layerSizes = layerSizes;
+                this.weights = []; this.biases = []; this.activations = [];
+                this.errors = []; this.gradientsW = []; this.gradientsB = [];
+                this.activationType = activationType;
+                this.activation = activationFunctions[activationType].func;
+                this.activationDerivative = activationFunctions[activationType].derivative;
+
+                // Initialize weights and biases
+                for (let i = 0; i < layerSizes.length - 1; i++) {
+                    const rows = layerSizes[i+1], cols = layerSizes[i];
+                    this.weights.push(Array(rows).fill(0).map(() => Array(cols).fill(0).map(() => Math.random() * 0.2 - 0.1)));
+                    this.biases.push(Array(rows).fill(0).map(() => Math.random() * 0.1 - 0.05));
+                    this.gradientsW.push(Array(rows).fill(0).map(() => Array(cols).fill(0)));
+                    this.gradientsB.push(Array(rows).fill(0));
+                }
+            }
+
+            // Set activation function (requires re-initialization usually)
+            setActivationFunction(activationType) {
+                 if (activationFunctions[activationType]) {
+                     this.activationType = activationType;
+                     this.activation = activationFunctions[activationType].func;
+                     this.activationDerivative = activationFunctions[activationType].derivative;
+                 } else {
+                     console.error("Unknown activation function type:", activationType);
+                 }
+            }
+
+            // Forward pass
+            forward(input) {
+                if (input.length !== this.layerSizes[0]) return null;
+                this.activations = [input]; let currentActivation = input;
+                for (let i = 0; i < this.weights.length; i++) {
+                    const W = this.weights[i], B = this.biases[i]; const nextActivations = [];
+                    for (let j = 0; j < W.length; j++) {
+                        let weightedSum = B[j];
+                        for (let k = 0; k < W[j].length; k++) weightedSum += currentActivation[k] * W[j][k];
+                        nextActivations.push(this.activation(weightedSum)); // Use selected activation
+                    }
+                    this.activations.push(nextActivations); currentActivation = nextActivations;
+                }
+                return currentActivation;
+            }
+
+            // Backpropagation
+            backward(targetOutput) {
+                const outputActivations = this.activations[this.activations.length - 1];
+                if (!outputActivations || targetOutput.length !== outputActivations.length) return;
+
+                this.errors = new Array(this.layerSizes.length).fill(null);
+                this.gradientsW = this.weights.map(l => l.map(r => r.map(() => 0)));
+                this.gradientsB = this.biases.map(l => l.map(() => 0));
+
+                let outputLayerIndex = this.layerSizes.length - 1;
+                // Calculate output error (delta) based on derivative of activation(Z)
+                // For MSE loss: Error = (output - target) * activation_derivative(output_activation)
+                 // Note: We pass the activation *value* to the derivative function as required by sigmoidDerivative/reluDerivative implementations
+                this.errors[outputLayerIndex] = outputActivations.map((output, i) =>
+                    (output - targetOutput[i]) * this.activationDerivative(output)
+                );
+
+                // Output layer gradients
+                let prevActivations = this.activations[outputLayerIndex - 1];
+                for (let j = 0; j < this.layerSizes[outputLayerIndex]; j++) {
+                    const error_j = this.errors[outputLayerIndex][j];
+                    this.gradientsB[outputLayerIndex - 1][j] = error_j;
+                    for (let k = 0; k < this.layerSizes[outputLayerIndex - 1]; k++) {
+                        this.gradientsW[outputLayerIndex - 1][j][k] = error_j * prevActivations[k];
+                    }
+                }
+
+                // Propagate error backwards through hidden layers
+                for (let i = outputLayerIndex - 1; i > 0; i--) {
+                    let currentActivations = this.activations[i];
+                    let nextLayerErrors = this.errors[i + 1];
+                    let currentWeightsToNext = this.weights[i]; // W connecting layer i -> i+1
+
+                    this.errors[i] = currentActivations.map((activation, j) => {
+                        let errorSum = 0;
+                        for (let k = 0; k < nextLayerErrors.length; k++) { // Sum error contribution from next layer
+                            errorSum += nextLayerErrors[k] * currentWeightsToNext[k][j];
+                        }
+                         // Pass activation value to derivative function
+                        return errorSum * this.activationDerivative(activation);
+                    });
+
+                    // Calculate gradients for weights connecting layer i-1 -> i
+                    prevActivations = this.activations[i - 1];
+                    for (let j = 0; j < this.layerSizes[i]; j++) { // Current neuron index j
+                        const error_j = this.errors[i][j];
+                        this.gradientsB[i-1][j] = error_j;
+                        for (let k = 0; k < this.layerSizes[i - 1]; k++) { // Previous neuron index k
+                           this.gradientsW[i-1][j][k] = error_j * prevActivations[k];
+                        }
+                    }
+                }
+            }
+
+            // Update weights and biases
+            update(learningRate) {
+                for (let i = 0; i < this.weights.length; i++) {
+                    for (let j = 0; j < this.weights[i].length; j++) {
+                        this.biases[i][j] -= learningRate * this.gradientsB[i][j];
+                        for (let k = 0; k < this.weights[i][j].length; k++) {
+                            this.weights[i][j][k] -= learningRate * this.gradientsW[i][j][k];
+                        }
+                    }
+                }
+            }
+
+             // Calculate Mean Squared Error
+            calculateError(targetOutput) {
+                 const outputActivations = this.activations[this.activations.length - 1];
+                 if (!outputActivations) return 1.0;
+                 let totalError = 0;
+                 for (let i = 0; i < targetOutput.length; i++) { totalError += Math.pow(targetOutput[i] - outputActivations[i], 2); }
+                 return totalError / targetOutput.length / 2;
+            }
+
+             // Get weights/biases for saving
+             getNetworkState() {
+                 return {
+                     weights: this.weights,
+                     biases: this.biases,
+                     // Also save structure for verification on load
+                     layerSizes: this.layerSizes,
+                     activationType: this.activationType
+                 };
+             }
+
+             // Load weights/biases
+             loadNetworkState(state) {
+                 // Basic validation
+                 if (JSON.stringify(state.layerSizes) !== JSON.stringify(this.layerSizes)) {
+                     console.error("Load failed: Network layer structure mismatch.");
+                     return false;
+                 }
+                  if (state.activationType !== this.activationType) {
+                     console.warn("Loading weights trained with a different activation function:", state.activationType);
+                     // Allow loading, but it might not work well. Best practice is to reset structure first.
+                 }
+
+                 try {
+                     // Deep copy might be safer, but assignment should work if dimensions match
+                     this.weights = state.weights;
+                     this.biases = state.biases;
+                     // Reset gradients etc. associated with old state
+                     this.activations = []; this.errors = []; this.gradientsW = []; this.gradientsB = [];
+                     return true;
+                 } catch (e) {
+                     console.error("Error loading network state:", e);
+                     return false;
+                 }
+             }
+        }
+
+
+        // --- Visualization & Control Globals ---
+        let network = null;
+        let isTraining = false;
+        let isTestingMode = false;
+        let trainingTimeout = null;
+        let gradientHighlightTimeout = null;
+        let currentEpoch = 0;
+        let currentExampleIndex = 0;
+        let totalExamplesTrained = 0;
+        let hiddenNeuronCount = 15;
+        let learningRate = 0.1;
+        let delay = 50;
+        let addNoise = false;
+        let noiseLevel = 0.05;
+        let showGradients = false;
+        let activationType = 'sigmoid';
+        let epochErrors = [];
+        let epochAvgErrors = [];
+        let epochAccuracies = [];
+
+        // DOM Elements (get references)
+        const explanationToggle = document.getElementById('explanation-toggle');
+        const explanationContent = document.getElementById('explanation-content');
+        const inputGrid = document.getElementById('input-grid');
+        const targetDigitEl = document.getElementById('target-digit');
+        const hiddenWeightVizDiv = document.getElementById('hidden-weight-viz');
+        const weightGridDiv = document.getElementById('weight-grid');
+        const vizNeuronIndexSpan = document.getElementById('viz-neuron-index');
+        const inputLayerViz = document.getElementById('input-layer');
+        const hiddenLayerViz = document.getElementById('hidden-layer');
+        const outputLayerViz = document.getElementById('output-layer');
+        const connectionsSvg = document.getElementById('connections-svg');
+        const errorGraphSvg = document.getElementById('error-graph-svg');
+        const errorGraphLine = document.getElementById('error-graph-line');
+        const graphGridlines = document.getElementById('graph-gridlines');
+        const graphAxes = document.getElementById('graph-axes');
+        const graphLabels = document.getElementById('graph-labels');
+        const tooltip = document.getElementById('tooltip');
+
+        // Control Elements
+        const activationFunctionSelect = document.getElementById('activation-function');
+        const hiddenNeuronsSlider = document.getElementById('hidden-neurons'); const hnValueSpan = document.getElementById('hn-value');
+        const learningRateSlider = document.getElementById('learning-rate'); const lrValueSpan = document.getElementById('lr-value');
+        const addNoiseCheckbox = document.getElementById('add-noise');
+        const noiseLevelSlider = document.getElementById('noise-level'); const nlValueSpan = document.getElementById('nl-value');
+        const showGradientsCheckbox = document.getElementById('show-gradients');
+        const delayInput = document.getElementById('delay');
+        const startButton = document.getElementById('start-training');
+        const stopButton = document.getElementById('stop-training');
+        const stepButton = document.getElementById('step-training');
+        const resetButton = document.getElementById('reset-network');
+        const enterTestModeButton = document.getElementById('enter-test-mode');
+        const saveButton = document.getElementById('save-weights');
+        const loadButton = document.getElementById('load-weights');
+        const saveLoadStatus = document.getElementById('save-load-status');
+
+        // Status/Output Elements
+        const epochCountEl = document.getElementById('epoch-count');
+        const exampleCountEl = document.getElementById('example-count');
+        const errorRateEl = document.getElementById('error-rate');
+        const accuracyRateEl = document.getElementById('accuracy-rate');
+        const predictionTrainEl = document.getElementById('prediction-train');
+        const confidenceTrainEl = document.getElementById('confidence-train');
+        const predictionStatusEl = document.getElementById('prediction-status');
+
+        // Test Mode Elements
+        const exitTestModeButton = document.getElementById('exit-test-mode');
+        const testAreaDiv = document.getElementById('test-area');
+        const predictDrawnButton = document.getElementById('predict-drawn');
+        const predictionTestEl = document.getElementById('prediction-test');
+        const confidenceTestEl = document.getElementById('confidence-test');
+        const trainingOutputDiv = document.getElementById('training-output');
+
+
+        // --- Initialization ---
+        function initSimulation() {
+            stopTraining(); exitTestMode();
+            currentEpoch = 0; currentExampleIndex = 0; totalExamplesTrained = 0;
+            epochErrors = []; epochAvgErrors = []; epochAccuracies = [];
+            updateStatusDisplay(); clearErrorGraph(); clearHiddenWeightViz();
+
+            // Read settings from UI
+            hiddenNeuronCount = parseInt(hiddenNeuronsSlider.value);
+            learningRate = parseFloat(learningRateSlider.value);
+            delay = parseInt(delayInput.value);
+            addNoise = addNoiseCheckbox.checked;
+            noiseLevel = parseInt(noiseLevelSlider.value) / 100;
+            showGradients = showGradientsCheckbox.checked;
+            activationType = activationFunctionSelect.value;
+
+            // Update UI displays for settings
+            hnValueSpan.textContent = hiddenNeuronCount;
+            lrValueSpan.textContent = learningRate.toFixed(3); // More precision for smaller rates
+            nlValueSpan.textContent = (noiseLevel * 100).toFixed(0);
+
+            // Create Network
+            network = new NeuralNetwork([INPUT_SIZE, hiddenNeuronCount, OUTPUT_SIZE], activationType);
+
+            // Create Visuals
+            createInputGrid();
+            createNetworkVisuals();
+            clearVisualization();
+            displayDigitPattern(0);
+
+            // Reset Button States
+            enterTestModeButton.disabled = true;
+            resetButton.disabled = false;
+            activationFunctionSelect.disabled = false;
+            hiddenNeuronsSlider.disabled = false;
+            saveLoadStatus.textContent = ''; // Clear save/load message
+            stopButton.disabled = true; startButton.disabled = false; stepButton.disabled = false;
+        }
+
+        function createInputGrid() {
+            inputGrid.innerHTML = ''; inputGrid.removeEventListener('click', handleGridClick);
+            inputGrid.classList.remove('drawable');
+            for (let i = 0; i < INPUT_SIZE; i++) {
+                const cell = document.createElement('div'); cell.classList.add('grid-cell');
+                cell.id = `grid-cell-${i}`; cell.dataset.index = i; inputGrid.appendChild(cell);
+            }
+            inputGrid.addEventListener('click', handleGridClick);
+        }
+
+        function createNetworkVisuals() {
+            inputLayerViz.innerHTML = ''; hiddenLayerViz.innerHTML = ''; outputLayerViz.innerHTML = ''; connectionsSvg.innerHTML = '';
+
+            // Input Layer Placeholders
+            for (let i = 0; i < network.layerSizes[0]; i++) { const n = document.createElement('div'); n.classList.add('neuron'); n.id = `neuron-input-${i}`; n.style.opacity = '0.2'; inputLayerViz.appendChild(n); }
+
+            // Hidden Layer Neurons (add event listeners for weight viz)
+             hiddenLayerViz.removeEventListener('mouseover', handleHiddenNeuronHover); // Clean up old listeners
+             hiddenLayerViz.removeEventListener('mouseout', handleHiddenNeuronOut);
+            for (let i = 0; i < network.layerSizes[1]; i++) {
+                const n = document.createElement('div'); n.classList.add('neuron', 'hidden-neuron'); n.id = `neuron-hidden-${i}`; n.dataset.index = i; // Store index
+                hiddenLayerViz.appendChild(n);
+            }
+             hiddenLayerViz.addEventListener('mouseover', handleHiddenNeuronHover);
+             hiddenLayerViz.addEventListener('mouseout', handleHiddenNeuronOut);
+
+
+            // Output Layer Neurons + Labels
+            for (let i = 0; i < network.layerSizes[2]; i++) { const nc = document.createElement('div'); nc.style.position = 'relative'; const n = document.createElement('div'); n.classList.add('neuron'); n.id = `neuron-output-${i}`; const l = document.createElement('span'); l.classList.add('output-neuron-label'); l.textContent = i; nc.appendChild(n); nc.appendChild(l); outputLayerViz.appendChild(nc); }
+
+            requestAnimationFrame(drawConnections);
+        }
+
+        // --- Visualization Update Functions ---
+
+        function displayDigitPattern(digitIndex, pattern = null) { /* ... (same as before) ... */
+             const currentPattern = pattern || digitPatterns[digitIndex];
+             targetDigitEl.textContent = isTestingMode ? 'DRAWING' : digitIndex;
+            for (let i = 0; i < INPUT_SIZE; i++) {
+                const cell = document.getElementById(`grid-cell-${i}`);
+                if (cell) { cell.classList.toggle('active', currentPattern[i] === 1); }
+            }
+         }
+
+        function updateNeuronVisuals(outputElementId = 'train') { /* ... (same as before, just returns prediction info) ... */
+             if (!network || !network.activations || network.activations.length < 3) return { predictedDigit: -1, maxActivation: -1 };
+             const hiddenActivations = network.activations[1];
+             for (let i = 0; i < hiddenActivations.length; i++) { const n = document.getElementById(`neuron-hidden-${i}`); if (n) { const act = hiddenActivations[i]; const cVal = network.activationType === 'relu' ? (act > 0 ? Math.min(255, Math.round((1 - Math.tanh(act*0.5)) * 255)) : 255) : Math.round((1 - act) * 255); n.style.backgroundColor = `rgb(${cVal}, ${cVal}, ${cVal})`; } } // Adjust ReLU viz slightly
+             const outputActivations = network.activations[2];
+             let maxActivation = -1; let predictedDigit = -1;
+             for (let i = 0; i < outputActivations.length; i++) { const n = document.getElementById(`neuron-output-${i}`); if (n) { const act = outputActivations[i]; const cVal = network.activationType === 'relu' ? (act > 0 ? Math.min(255, Math.round((1 - Math.tanh(act*0.5)) * 255)) : 255) : Math.round((1 - act) * 255); n.style.backgroundColor = `rgb(${cVal}, ${cVal}, ${cVal})`; if(act > maxActivation) { maxActivation = act; predictedDigit = i; } } }
+             const predictionEl = document.getElementById(`prediction-${outputElementId}`);
+             const confidenceEl = document.getElementById(`confidence-${outputElementId}`);
+             if (predictionEl) predictionEl.textContent = predictedDigit;
+             if (confidenceEl) confidenceEl.textContent = maxActivation.toFixed(3);
+             if (outputElementId === 'train') { const targetDigit = parseInt(targetDigitEl.textContent); if (!isNaN(targetDigit)) { const correct = predictedDigit === targetDigit; predictionStatusEl.textContent = correct ? "Correct" : "Incorrect"; predictionStatusEl.className = correct ? 'prediction-correct' : 'prediction-incorrect'; } else { predictionStatusEl.textContent = "-"; predictionStatusEl.className = ''; } }
+             return { predictedDigit, maxActivation };
+         }
+
+        let connectionElements = {}; // Cache connections for gradient highlighting
+        function drawConnections(highlightGradients = false) {
+             connectionsSvg.innerHTML = ''; connectionElements = {}; if (!network) return;
+             const layers = [inputLayerViz, hiddenLayerViz, outputLayerViz];
+             const svgRect = connectionsSvg.getBoundingClientRect(); if (svgRect.width === 0) return;
+
+             const weightMatrices = network.weights;
+             const gradientMatrices = highlightGradients ? network.gradientsW : null; // Only get gradients if needed
+
+             for (let i = 0; i < weightMatrices.length; i++) { // Layer connection index (0: input->hidden, 1: hidden->output)
+                const prevLayerNeurons = layers[i].children; const nextLayerNeurons = layers[i+1].children;
+                const weights = weightMatrices[i]; // W[next_neuron_idx][prev_neuron_idx]
+                const gradients = gradientMatrices ? gradientMatrices[i] : null;
+
+                for (let j = 0; j < weights.length; j++) { // Index of neuron in NEXT layer
+                     for (let k = 0; k < weights[j].length; k++) { // Index of neuron in PREV layer
+                        const weight = weights[j][k];
+                        const gradient = gradients ? gradients[j][k] : 0;
+
+                        const prevNeuronEl = prevLayerNeurons[k];
+                        const nextNeuronEl = layers[i+1] === outputLayerViz ? nextLayerNeurons[j].querySelector('.neuron') : nextLayerNeurons[j];
+                        if (!prevNeuronEl || !nextNeuronEl) continue;
+                        const prevRect = prevNeuronEl.getBoundingClientRect(); const nextRect = nextNeuronEl.getBoundingClientRect();
+                        const x1 = (prevRect.left + prevRect.width / 2) - svgRect.left; const y1 = (prevRect.top + prevRect.height / 2) - svgRect.top;
+                        const x2 = (nextRect.left + nextRect.width / 2) - svgRect.left; const y2 = (nextRect.top + nextRect.height / 2) - svgRect.top;
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2); line.classList.add('connection');
+
+                        const absWeight = Math.abs(weight);
+                        const thickness = Math.min(Math.max(absWeight * 3, 0.1), 3.0); // Slightly thicker max
+                        line.style.strokeWidth = thickness.toFixed(2);
+
+                        // Base color on weight sign
+                        let baseColor = weight > 0 ? `var(--positive-weight-color)` : `var(--negative-weight-color)`;
+                         // Adjust opacity based on weight magnitude
+                        const maxIntensityWeight = 0.5; const intensity = Math.min(absWeight / maxIntensityWeight, 1);
+                        line.style.stroke = baseColor.replace(/[\d\.]+\)$/g, `${intensity * 0.8 + 0.1})`); // Adjust alpha
+
+
+                         // Store reference for potential gradient highlighting
+                         const connId = `conn-${i}-${k}-${j}`; // Layer-PrevIdx-NextIdx
+                         connectionElements[connId] = line;
+
+                         // Apply gradient highlight class if needed
+                         if (highlightGradients && Math.abs(gradient) > 0.01) { // Threshold to avoid highlighting tiny gradients
+                             // Thicker line for stronger gradient impulse
+                             const gradMag = Math.abs(gradient);
+                             line.style.strokeWidth = Math.min(Math.max(gradMag * 10, 1.0), 4.0).toFixed(2); // Scale gradient viz differently
+                             // Positive gradient means weight will *decrease* (W = W - LR*grad) -> orange
+                             // Negative gradient means weight will *increase* -> green
+                             line.classList.add(gradient > 0 ? 'gradient-highlight-neg' : 'gradient-highlight-pos');
+                         }
+
+                        connectionsSvg.appendChild(line);
+                    }
+                }
+             }
+        }
+
+
+        function clearVisualization() { 
+             document.querySelectorAll('.neuron').forEach(n => n.style.backgroundColor = 'white');
+             document.querySelectorAll('.grid-cell').forEach(c => c.classList.remove('active'));
+             targetDigitEl.textContent = 'N/A';
+             predictionTrainEl.textContent = 'N/A'; confidenceTrainEl.textContent = 'N/A'; predictionStatusEl.textContent = '-'; predictionStatusEl.className = '';
+             predictionTestEl.textContent = 'N/A'; confidenceTestEl.textContent = 'N/A';
+             clearHiddenWeightViz();
+             if (network) { requestAnimationFrame(() => drawConnections(false)); } // Draw initial state without highlights
+         }
+
+        function updateStatusDisplay() { 
+             epochCountEl.textContent = currentEpoch;
+             exampleCountEl.textContent = totalExamplesTrained;
+             if (epochAvgErrors.length > 0) { errorRateEl.textContent = epochAvgErrors[epochAvgErrors.length - 1].toExponential(3); } else { errorRateEl.textContent = 'N/A'; }
+             if (epochAccuracies.length > 0) { accuracyRateEl.textContent = `${(epochAccuracies[epochAccuracies.length - 1] * 100).toFixed(1)}%`; } else { accuracyRateEl.textContent = 'N/A'; }
+         }
+
+        // --- Hidden Neuron Weight Visualization ---
+        function visualizeHiddenNeuronWeights(neuronIndex) {
+            if (!network || !network.weights[0] || neuronIndex < 0 || neuronIndex >= network.weights[0].length) {
+                 clearHiddenWeightViz(); return;
+            }
+            const weightsToNeuron = network.weights[0][neuronIndex]; // Weights from ALL inputs to this ONE hidden neuron
+            weightGridDiv.innerHTML = ''; // Clear previous grid
+
+             // Find min/max weights for normalization/scaling color intensity
+             let minW = 0, maxW = 0;
+             weightsToNeuron.forEach(w => { minW = Math.min(minW, w); maxW = Math.max(maxW, w); });
+             const maxAbsW = Math.max(Math.abs(minW), Math.abs(maxW));
+             if (maxAbsW === 0) return; // All weights are zero
+
+            for (let i = 0; i < INPUT_SIZE; i++) {
+                 const weight = weightsToNeuron[i];
+                 const cell = document.createElement('div');
+                 cell.classList.add('weight-cell');
+
+                 const intensity = Math.abs(weight) / maxAbsW; // Normalize 0-1
+
+                 // Use blue for positive, red for negative, intensity for brightness/alpha
+                 let color;
+                 if (weight > 0) {
+                     // Map intensity to blue color (e.g., light blue to dark blue)
+                     const blueVal = 150 + Math.round(intensity * 105); // Range 150-255
+                     color = `rgb(${255-Math.round(intensity*150)}, ${255-Math.round(intensity*50)}, ${blueVal})`; // Less intense blue/purple
+                 } else {
+                     // Map intensity to red color
+                      const redVal = 150 + Math.round(intensity * 105);
+                     color = `rgb(${redVal}, ${255-Math.round(intensity*150)}, ${255-Math.round(intensity*150)})`; // Less intense red/pink
+                 }
+                  // More direct RGBA approach:
+                  if (weight > 0) {
+                      color = `rgba(0, 0, 255, ${intensity * 0.8 + 0.1})`; // Blue with alpha based on intensity
+                  } else {
+                      color = `rgba(255, 0, 0, ${intensity * 0.8 + 0.1})`; // Red with alpha based on intensity
+                  }
+
+
+                 cell.style.backgroundColor = color;
+                 cell.title = `Weight: ${weight.toFixed(3)}`; // Tooltip on hover
+                 weightGridDiv.appendChild(cell);
+            }
+             vizNeuronIndexSpan.textContent = ` #${neuronIndex}`;
+             hiddenWeightVizDiv.classList.add('visible');
+        }
+
+        function clearHiddenWeightViz() {
+             hiddenWeightVizDiv.classList.remove('visible');
+             vizNeuronIndexSpan.textContent = '';
+             // Optionally clear the grid content: weightGridDiv.innerHTML = '';
+        }
+
+        function handleHiddenNeuronHover(event) {
+             if (event.target.classList.contains('hidden-neuron')) {
+                 const index = parseInt(event.target.dataset.index);
+                 visualizeHiddenNeuronWeights(index);
+
+                 // Show tooltip
+                 tooltip.textContent = `Hidden Neuron ${index}`;
+                 tooltip.style.display = 'block';
+                 positionTooltip(event);
+             }
+        }
+         function handleHiddenNeuronOut(event) {
+              if (event.target.classList.contains('hidden-neuron')) {
+                 // Optional: Keep viz visible until another is hovered, or clear it:
+                 // clearHiddenWeightViz();
+                 tooltip.style.display = 'none';
+              }
+         }
+         document.addEventListener('mousemove', positionTooltip); // Update tooltip position on mouse move
+
+         function positionTooltip(event) {
+             if (tooltip.style.display === 'block') {
+                 // Position tooltip slightly offset from the cursor
+                 tooltip.style.left = `${event.clientX + 15}px`;
+                 tooltip.style.top = `${event.clientY + 10}px`;
+             }
+         }
+
+
+        // --- Error Graph ---
+        function clearErrorGraph() { 
+             errorGraphLine.setAttribute('points', '');
+             graphGridlines.innerHTML = '';
+             graphAxes.innerHTML = '';
+             graphLabels.innerHTML = '';
+        }
+        function updateErrorGraph() { /* ... (Enhanced with Axis/Grid/Labels) ... */
+            const errorsToPlot = epochAvgErrors.slice(-MAX_GRAPH_EPOCHS);
+            if (errorsToPlot.length < 2) { clearErrorGraph(); return; }
+
+            const svgWidth = errorGraphSvg.clientWidth;
+            const svgHeight = errorGraphSvg.clientHeight;
+            const padding = { top: 10, right: 15, bottom: 20, left: 35 }; // More space for labels
+            const chartWidth = svgWidth - padding.left - padding.right;
+            const chartHeight = svgHeight - padding.top - padding.bottom;
+
+            let minError = Math.min(...errorsToPlot);
+            let maxError = Math.max(...errorsToPlot);
+            const errorRange = maxError - minError;
+
+             // Prevent division by zero or extreme scaling if range is tiny
+            const effectiveRange = (errorRange < 1e-6) ? 0.1 : errorRange; // Give some vertical space even if flat
+             const effectiveMin = (errorRange < 1e-6) ? Math.max(0, minError - 0.05) : minError;
+
+
+            const points = errorsToPlot.map((error, index) => {
+                const x = padding.left + (index / (errorsToPlot.length - 1)) * chartWidth;
+                const y = padding.top + chartHeight - ((error - effectiveMin) / effectiveRange) * chartHeight;
+                return `${x.toFixed(2)},${Math.max(padding.top, Math.min(padding.top + chartHeight, y)).toFixed(2)}`; // Clamp Y
+            }).join(' ');
+
+            errorGraphLine.setAttribute('points', points);
+
+             // --- Draw Axes, Gridlines, Labels ---
+             graphGridlines.innerHTML = ''; graphAxes.innerHTML = ''; graphLabels.innerHTML = '';
+
+             // X Axis (Epochs)
+             const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+             xAxis.setAttribute('x1', padding.left); xAxis.setAttribute('y1', padding.top + chartHeight);
+             xAxis.setAttribute('x2', padding.left + chartWidth); xAxis.setAttribute('y2', padding.top + chartHeight);
+             xAxis.classList.add('axis');
+             graphAxes.appendChild(xAxis);
+
+             // Y Axis (Error)
+             const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+             yAxis.setAttribute('x1', padding.left); yAxis.setAttribute('y1', padding.top);
+             yAxis.setAttribute('x2', padding.left); yAxis.setAttribute('y2', padding.top + chartHeight);
+             yAxis.classList.add('axis');
+             graphAxes.appendChild(yAxis);
+
+             // Add Labels (simplified: just max/min error)
+             const maxErrLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+             maxErrLabel.setAttribute('x', padding.left - 5); maxErrLabel.setAttribute('y', padding.top + 5);
+             maxErrLabel.setAttribute('text-anchor', 'end'); maxErrLabel.setAttribute('dominant-baseline', 'hanging');
+             maxErrLabel.textContent = maxError.toExponential(1);
+             graphLabels.appendChild(maxErrLabel);
+
+             const minErrLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+             minErrLabel.setAttribute('x', padding.left - 5); minErrLabel.setAttribute('y', padding.top + chartHeight - 2);
+             minErrLabel.setAttribute('text-anchor', 'end'); minErrLabel.setAttribute('dominant-baseline', 'auto');
+             minErrLabel.textContent = minError.toExponential(1);
+             graphLabels.appendChild(minErrLabel);
+
+             // Add Epoch Label
+              const epochLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+              epochLabel.setAttribute('x', padding.left + chartWidth / 2); epochLabel.setAttribute('y', svgHeight - 5);
+              epochLabel.setAttribute('text-anchor', 'middle');
+              epochLabel.textContent = `Epochs (${Math.max(0, currentEpoch - errorsToPlot.length + 1)} - ${currentEpoch})`;
+              graphLabels.appendChild(epochLabel);
+        }
+
+
+        // --- Training & Testing Logic ---
+
+        function introduceNoise(inputArray, level) { /* ... (same as before) ... */
+             const noisyInput = [...inputArray]; const numPixelsToFlip = Math.floor(inputArray.length * level);
+             const indices = Array.from(Array(inputArray.length).keys()); // Get all indices
+             // Shuffle and pick N unique indices to flip
+             for(let i = indices.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [indices[i], indices[j]] = [indices[j], indices[i]]; }
+             for (let i = 0; i < numPixelsToFlip; i++) { const idx = indices[i]; noisyInput[idx] = 1 - noisyInput[idx]; }
+             return noisyInput;
+         }
+
+        function calculateEpochAccuracy() { /* ... (same as before) ... */
+             if (!network) return 0; let correctPredictions = 0;
+             for (let i = 0; i < digitPatterns.length; i++) {
+                 const input = digitPatterns[i]; const output = network.forward(input); if (!output) continue;
+                 let maxActivation = -1; let predictedDigit = -1;
+                 for (let j = 0; j < output.length; j++) { if (output[j] > maxActivation) { maxActivation = output[j]; predictedDigit = j; } }
+                 if (predictedDigit === i) { correctPredictions++; }
+             } return correctPredictions / digitPatterns.length;
+         }
+
+        function trainStep() {
+             if (!network || isTestingMode) return;
+
+             const digitIndex = currentExampleIndex % digitPatterns.length;
+             let input = digitPatterns[digitIndex];
+             const targetOutput = Array(OUTPUT_SIZE).fill(0); targetOutput[digitIndex] = 1;
+
+             if (addNoise && noiseLevel > 0) input = introduceNoise(input, noiseLevel);
+             displayDigitPattern(digitIndex, input);
+
+             network.forward(input);
+             const error = network.calculateError(targetOutput); epochErrors.push(error);
+             network.backward(targetOutput); // Calculate gradients
+
+             // --- Optional Gradient Visualization ---
+             if (showGradients) {
+                 requestAnimationFrame(() => drawConnections(true)); // Redraw with gradient highlights
+                 if (gradientHighlightTimeout) clearTimeout(gradientHighlightTimeout);
+                 gradientHighlightTimeout = setTimeout(() => {
+                     requestAnimationFrame(() => drawConnections(false)); // Redraw normally after delay
+                 }, GRADIENT_HIGHLIGHT_DURATION);
+             }
+             // --- End Gradient Visualization ---
+
+             network.update(learningRate); // Update weights using gradients
+
+             // Update visuals (neurons, normal connections, training prediction)
+             // Don't draw normal connections immediately if gradient viz is on
+              updateNeuronVisuals('train');
+              if (!showGradients) {
+                  requestAnimationFrame(() => drawConnections(false));
+              }
+
+             totalExamplesTrained++; currentExampleIndex++;
+
+             // Epoch boundary logic
+             if (currentExampleIndex === digitPatterns.length) {
+                 currentExampleIndex = 0; currentEpoch++;
+                 const avgError = epochErrors.reduce((a, b) => a + b, 0) / epochErrors.length; epochAvgErrors.push(avgError);
+                 const accuracy = calculateEpochAccuracy(); epochAccuracies.push(accuracy);
+                 epochErrors = [];
+                 updateStatusDisplay(); updateErrorGraph();
+                 if (currentEpoch > 0 && !isTestingMode) enterTestModeButton.disabled = false;
+             } else if (totalExamplesTrained % 10 === 0) {
+                 updateStatusDisplay();
+             }
+
+             if (isTraining) trainingTimeout = setTimeout(trainStep, delay);
+        }
+
+        // --- Control Functions (Start, Stop, Step, Test Mode, Save/Load) ---
+
+        function startTraining() { /* ... (Disable appropriate controls) ... */
+            if (isTraining || isTestingMode) return;
+            isTraining = true;
+            enterTestModeButton.disabled = true; startButton.disabled = true; stepButton.disabled = true; stopButton.disabled = false; resetButton.disabled = true; activationFunctionSelect.disabled = true; hiddenNeuronsSlider.disabled = true; loadButton.disabled = true; saveButton.disabled = true; // Disable save/load during train
+            if (trainingTimeout) clearTimeout(trainingTimeout);
+            trainStep();
+        }
+
+        function stopTraining() { /* ... (Enable appropriate controls) ... */
+            isTraining = false; if (trainingTimeout) { clearTimeout(trainingTimeout); trainingTimeout = null; } if (gradientHighlightTimeout) clearTimeout(gradientHighlightTimeout); // Clear gradient viz timeout too
+            const trained = totalExamplesTrained > 0;
+            startButton.disabled = false; stepButton.disabled = false; stopButton.disabled = true; resetButton.disabled = false; activationFunctionSelect.disabled = false; hiddenNeuronsSlider.disabled = false; loadButton.disabled = false; saveButton.disabled = trained; // Can only save if trained
+            enterTestModeButton.disabled = !trained;
+        }
+
+        function handleStep() { /* ... (same as before) ... */
+             if (isTraining || isTestingMode) return;
+             stopTraining(); trainStep(); updateStatusDisplay();
+        }
+
+        function enterTestMode() { /* ... (Disable training, enable test) ... */
+            if (isTraining) stopTraining();
+            isTestingMode = true;
+            startButton.disabled = true; stepButton.disabled = true; stopButton.disabled = true; resetButton.disabled = true; activationFunctionSelect.disabled = true; hiddenNeuronsSlider.disabled = true; enterTestModeButton.disabled = true; addNoiseCheckbox.disabled = true; noiseLevelSlider.disabled = true; loadButton.disabled = true; saveButton.disabled = true; showGradientsCheckbox.disabled = true; // Disable viz options in test
+            inputGrid.classList.add('drawable'); testAreaDiv.style.display = 'block'; trainingOutputDiv.style.opacity = '0.5'; targetDigitEl.textContent = 'DRAWING';
+            clearVisualization(); predictionTestEl.textContent = 'N/A'; confidenceTestEl.textContent = 'N/A';
+             clearHiddenWeightViz(); // Clear neuron viz when entering test mode
+        }
+
+        function exitTestMode() { /* ... (Disable test, enable training) ... */
+             isTestingMode = false;
+             const trained = totalExamplesTrained > 0;
+             startButton.disabled = false; stepButton.disabled = false; stopButton.disabled = true; resetButton.disabled = false; activationFunctionSelect.disabled = false; hiddenNeuronsSlider.disabled = false; addNoiseCheckbox.disabled = false; noiseLevelSlider.disabled = false; loadButton.disabled = false; saveButton.disabled = trained; showGradientsCheckbox.disabled = false;
+             enterTestModeButton.disabled = !trained;
+             inputGrid.classList.remove('drawable'); testAreaDiv.style.display = 'none'; trainingOutputDiv.style.opacity = '1.0';
+             const lastDigitIndex = (currentExampleIndex - 1 + digitPatterns.length) % digitPatterns.length;
+             displayDigitPattern(lastDigitIndex >= 0 ? lastDigitIndex : 0);
+             updateNeuronVisuals('train'); updateStatusDisplay();
+             requestAnimationFrame(() => drawConnections(false));
+        }
+
+        function predictDrawnDigit() { /* ... (same as before) ... */
+             if (!network || !isTestingMode) return;
+             const drawnInput = []; const cells = inputGrid.querySelectorAll('.grid-cell');
+             cells.forEach(cell => { drawnInput.push(cell.classList.contains('active') ? 1 : 0); });
+             network.forward(drawnInput);
+             updateNeuronVisuals('test'); // Updates test prediction AND neuron colors
+             // Do not update connections here - they show the *trained* state.
+         }
+
+         function saveWeights() {
+             if (!network || totalExamplesTrained === 0) {
+                 saveLoadStatus.textContent = "Train first!";
+                 setTimeout(() => saveLoadStatus.textContent = "", 2000);
+                 return;
+             }
+             try {
+                 const networkState = network.getNetworkState();
+                 localStorage.setItem('nnSimulatorWeights', JSON.stringify(networkState));
+                 saveLoadStatus.textContent = "Weights Saved!";
+                 setTimeout(() => saveLoadStatus.textContent = "", 2000);
+             } catch (e) {
+                 console.error("Failed to save weights:", e);
+                 saveLoadStatus.textContent = "Save Failed!";
+                 setTimeout(() => saveLoadStatus.textContent = "", 2000);
+             }
+         }
+
+         function loadWeights() {
+             if (!network) return;
+              if (isTraining) {
+                  saveLoadStatus.textContent = "Stop training first!";
+                  setTimeout(() => saveLoadStatus.textContent = "", 2000);
+                  return;
+              }
+             try {
+                 const savedStateJSON = localStorage.getItem('nnSimulatorWeights');
+                 if (!savedStateJSON) {
+                     saveLoadStatus.textContent = "No saved weights found.";
+                     setTimeout(() => saveLoadStatus.textContent = "", 2000);
+                     return;
+                 }
+                 const savedState = JSON.parse(savedStateJSON);
+
+                 // **Important:** Check if saved structure matches current UI settings BEFORE loading
+                 if (JSON.stringify(savedState.layerSizes) !== JSON.stringify([INPUT_SIZE, hiddenNeuronCount, OUTPUT_SIZE])) {
+                      saveLoadStatus.textContent = `Load Failed: Structure mismatch (Saved: ${savedState.layerSizes.join(',')}, Current: ${[INPUT_SIZE, hiddenNeuronCount, OUTPUT_SIZE].join(',')})`;
+                      setTimeout(() => saveLoadStatus.textContent = "", 4000);
+                      return;
+                 }
+                  if (savedState.activationType !== activationType) {
+                      saveLoadStatus.textContent = `Warning: Loading weights from '${savedState.activationType}' activation.`;
+                       setTimeout(() => saveLoadStatus.textContent = "", 4000);
+                       // Proceed with loading, but warn user
+                  }
+
+
+                 if (network.loadNetworkState(savedState)) {
+                     saveLoadStatus.textContent = "Weights Loaded!";
+                     setTimeout(() => saveLoadStatus.textContent = "", 2000);
+                     // Reset training progress associated with the old state
+                     currentEpoch = 0; currentExampleIndex = 0; totalExamplesTrained = 0; // Or load these too? Simpler to reset.
+                     epochErrors = []; epochAvgErrors = []; epochAccuracies = [];
+                     updateStatusDisplay(); clearErrorGraph();
+                     // Update visualization to reflect loaded weights
+                     clearVisualization(); // Clear old neuron activations
+                     displayDigitPattern(0); // Show a default pattern
+                     requestAnimationFrame(() => drawConnections(false)); // Redraw connections
+                     enterTestModeButton.disabled = false; // Enable testing now
+                     saveButton.disabled = true; // Should probably re-train before saving again? Or enable immediately? Let's disable.
+
+                 } else {
+                      saveLoadStatus.textContent = "Load Failed! (Check Console)";
+                      setTimeout(() => saveLoadStatus.textContent = "", 3000);
+                 }
+
+             } catch (e) {
+                 console.error("Failed to load weights:", e);
+                 saveLoadStatus.textContent = "Load Failed! (Check Console)";
+                 setTimeout(() => saveLoadStatus.textContent = "", 3000);
+             }
+         }
+
+
+        // --- Event Listeners ---
+        explanationToggle.addEventListener('click', () => {
+            explanationContent.classList.toggle('show');
+            explanationToggle.innerHTML = explanationContent.classList.contains('show')
+                ? 'What is this? (Click to Expand/Collapse) &#9652;' // Up arrow
+                : 'What is this? (Click to Expand/Collapse) &#9662;'; // Down arrow
+        });
+
+        startButton.addEventListener('click', startTraining);
+        stopButton.addEventListener('click', stopTraining);
+        stepButton.addEventListener('click', handleStep);
+        resetButton.addEventListener('click', initSimulation); // Reset requires re-init
+        enterTestModeButton.addEventListener('click', enterTestMode);
+        exitTestModeButton.addEventListener('click', exitTestMode);
+        predictDrawnButton.addEventListener('click', predictDrawnDigit);
+        saveButton.addEventListener('click', saveWeights);
+        loadButton.addEventListener('click', loadWeights);
+
+        // Settings listeners
+        learningRateSlider.addEventListener('input', (e) => { learningRate = parseFloat(e.target.value); lrValueSpan.textContent = learningRate.toFixed(3); });
+        hiddenNeuronsSlider.addEventListener('input', (e) => { hnValueSpan.textContent = e.target.value; /* Reset needed */ resetButton.style.borderColor = 'red'; /* Indicate reset needed */ }); // Don't auto-reset, let user click
+        activationFunctionSelect.addEventListener('change', (e) => { /* Reset needed */ resetButton.style.borderColor = 'red'; /* Indicate reset needed */});
+        delayInput.addEventListener('input', (e) => { delay = parseInt(e.target.value) || 0; });
+        addNoiseCheckbox.addEventListener('change', (e) => { addNoise = e.target.checked; });
+        noiseLevelSlider.addEventListener('input', (e) => { noiseLevel = parseInt(e.target.value) / 100; nlValueSpan.textContent = (noiseLevel * 100).toFixed(0); });
+        showGradientsCheckbox.addEventListener('change', (e) => { showGradients = e.target.checked; });
+
+        // Reset button border on click
+         resetButton.addEventListener('click', () => { resetButton.style.borderColor = ''; });
+
+        // Grid click handler for test mode
+        function handleGridClick(event) {
+            if (!isTestingMode) return;
+            if (event.target.classList.contains('grid-cell')) {
+                event.target.classList.toggle('active');
+            }
+        }
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', initSimulation);
+
+    </script>
+
+</body>
+</html>
